@@ -1,0 +1,1 @@
+{"output_path": "/Users/brady/Desktop", "parts_of_speech": ["NOUN", "PROPN"], "stop_words_path": "/Users/brady/Downloads/danish_stop_words.txt", "language_index": 1, "chunk_size": "1000", "topics": "25", "mallet_path": "/Users/brady/Downloads/mallet-2.0.8/bin/mallet", "input_path": "/Users/brady/Desktop/LING 360/Kierkegaard"}
