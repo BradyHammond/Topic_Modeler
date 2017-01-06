@@ -14,8 +14,8 @@ from PyQt5.QtWidgets import QMessageBox, QFileDialog, QApplication
 from gensim.models.wrappers import ldamallet
 from rippletagger.tagger import Tagger
 from nltk.stem.snowball import SnowballStemmer
-from multiprocessing import Pool
 from corpus import corpusObject
+from wordcloud import WordCloud
 import json
 import sys
 import os
@@ -23,6 +23,8 @@ import logging
 import string
 import shutil
 import datetime
+import multiprocessing
+
 
 """=================================================="""
 """                CLASS DEFINITIONS                 """
@@ -594,7 +596,6 @@ class Ui_main_window(object):
             response = message_box.exec_()
 
             if response == QMessageBox.No:
-                self.passages_directory = False
                 return
             else:
                 self.passages_directory = self.output_path_input.text() + "/Passages"
@@ -603,7 +604,7 @@ class Ui_main_window(object):
                     try:
                         if os.path.isfile(file_path):
                             os.unlink(file_path)
-                        elif os.path.isdir(file_path): shutil.rmtree(file_path)
+                        elif os.path.isdir(file_path): shutil.rmtree(file_path, ignore_errors=True)
                     except Exception as exception:
                         print(exception)
 
@@ -619,8 +620,46 @@ class Ui_main_window(object):
         model = ldamallet.LdaMallet(self.mallet_path_input.text(), corpus, num_topics=int(self.topics_input.text()),
                                     id2word=corpus.dictionary)
 
-        model.print_topics(num_topics=-1, num_words=10)
-        shutil.rmtree(self.temporary_directory)
+        shutil.rmtree(self.temporary_directory, ignore_errors=True)
+
+        if not os.path.exists(self.output_path_input.text() + "/Word Clouds"):
+            os.makedirs(self.output_path_input.text() + "/Word Clouds")
+            self.word_clouds_directory = self.output_path_input.text() + "/Word Clouds"
+        else:
+            message_box = QMessageBox()
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setWindowTitle("Passages Folder Already Exists")
+            message_box.setText("It looks like you already have a folder named \"Word Clouds\" in the specified" +
+                                " output directory. If you choose to continue, the contents of this folder will be" +
+                                " overwritten. Are you sure you wish to continue?")
+            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            response = message_box.exec_()
+
+            if response == QMessageBox.No:
+                return
+            else:
+                self.word_clouds_directory = self.output_path_input.text() + "/Word Clouds"
+                for file in os.listdir(self.word_clouds_directory):
+                    file_path = os.path.join(self.word_clouds_directory, file)
+                    try:
+                        if os.path.isfile(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path): shutil.rmtree(file_path, ignore_errors=True)
+                    except Exception as exception:
+                        print(exception)
+
+        word_cloud = WordCloud(
+            background_color="white",
+            max_words=2000,
+            width=1024,
+            height=1024,
+        )
+
+        for i in range(int(self.topics_input.text())):
+            tuples = model.show_topic(i, num_words=1000)
+            rearranged_tuples = [(entry[1], entry[0]) for entry in tuples]
+            word_cloud.generate_from_frequencies(rearranged_tuples)
+            word_cloud.to_file(self.word_clouds_directory + "/word_cloud_" + str(i + 1) + ".png")
 
     def savePreferenceData(self):
         preference_data_file = open("files/preference_data.json", "w")
@@ -696,60 +735,69 @@ class Ui_main_window(object):
                         if os.path.isfile(file_path):
                             os.unlink(file_path)
                         elif os.path.isdir(file_path):
-                            shutil.rmtree(file_path)
+                            shutil.rmtree(file_path, ignore_errors=True)
                     except Exception as exception:
                         print(exception)
 
         for subdirectory, directories, files in os.walk(self.input_path_input.text()):
+            jobs = []
             for file in files:
-                file_name = os.path.splitext(file)[0]
-                file_path = os.path.join(subdirectory, file)
+                process = multiprocessing.Process(target=self.processFile, args=(subdirectory, file))
+                jobs.append(process)
+                process.start()
+            for job in jobs:
+                job.join()
 
-                working_file = open(file_path, encoding="utf-8", errors="ignore")
-                working_file_text = working_file.read()
-                working_file_text = working_file_text.lower().rstrip("/n")
-                if not self.punct_checkbox.isChecked():
-                    working_file_text = "".join(i for i in working_file_text if i not in string.punctuation)
-                working_file.close()
 
-                if self.language_input.currentText() == "Danish":
-                    stemmer = SnowballStemmer("danish")
-                    tagger = Tagger(language="da")
+    def processFile(self, subdirectory, file):
+        file_name = os.path.splitext(file)[0]
+        file_path = os.path.join(subdirectory, file)
 
-                elif self.language_input.currentText() == "Norwegian":
-                    stemmer = SnowballStemmer("norwegian")
-                    tagger = Tagger(language="no")
+        working_file = open(file_path, encoding="utf-8", errors="ignore")
+        working_file_text = working_file.read()
+        working_file_text = working_file_text.lower().rstrip("/n")
+        if not self.punct_checkbox.isChecked():
+            working_file_text = "".join(i for i in working_file_text if i not in string.punctuation)
+        working_file.close()
 
-                elif self.language_input.currentText() == "Swedish":
-                    stemmer = SnowballStemmer("swedish")
-                    tagger = Tagger(language="sv-2")
+        if self.language_input.currentText() == "Danish":
+            stemmer = SnowballStemmer("danish")
+            tagger = Tagger(language="da")
 
-                else:
-                    stemmer = SnowballStemmer("english")
-                    tagger = Tagger(language="en-2")
+        elif self.language_input.currentText() == "Norwegian":
+            stemmer = SnowballStemmer("norwegian")
+            tagger = Tagger(language="no")
 
-                tagged_text = tagger.tag(working_file_text)
-                chunks = list(self.chunkCorpus(tagged_text, int(self.chunk_size_input.text())))
+        elif self.language_input.currentText() == "Swedish":
+            stemmer = SnowballStemmer("swedish")
+            tagger = Tagger(language="sv-2")
 
-                chunk_number = 1
-                for chunk in chunks:
-                    chunked_file = open(self.passages_directory + "/" + file_name + "_" + str(chunk_number) +
-                                        ".txt", "w")
-                    for tag in chunk:
-                        chunked_file.write(tag[0])
-                    chunked_file.close()
+        else:
+            stemmer = SnowballStemmer("english")
+            tagger = Tagger(language="en-2")
 
-                    chunked_file = open(self.temporary_directory + "/" + file_name + "_" + str(chunk_number) +
-                                        ".txt", "w")
-                    for tag in chunk:
-                        if tag[1] in self.parts_of_speech:
-                            if tag[0] in self.stop_words:
-                                pass
-                            else:
-                                stemmed_tag = stemmer.stem(tag[0])
-                                chunked_file.write(stemmed_tag + " ")
-                    chunked_file.close()
-                    chunk_number += 1
+        tagged_text = tagger.tag(working_file_text)
+        chunks = list(self.chunkCorpus(tagged_text, int(self.chunk_size_input.text())))
+
+        chunk_number = 1
+        for chunk in chunks:
+            chunked_file = open(self.passages_directory + "/" + file_name + "_" + str(chunk_number) +
+                                ".txt", "w")
+            for tag in chunk:
+                chunked_file.write(tag[0])
+            chunked_file.close()
+
+            chunked_file = open(self.temporary_directory + "/" + file_name + "_" + str(chunk_number) +
+                                ".txt", "w")
+            for tag in chunk:
+                if tag[1] in self.parts_of_speech:
+                    if tag[0] in self.stop_words:
+                        pass
+                    else:
+                        stemmed_tag = stemmer.stem(tag[0])
+                        chunked_file.write(stemmed_tag + " ")
+            chunked_file.close()
+            chunk_number += 1
 
     def addPartsOfSpeech(self):
         if self.adj_checkbox.isChecked():
