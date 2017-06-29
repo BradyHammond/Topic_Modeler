@@ -29,8 +29,9 @@ class corpusObject(object):
 
     def iterateDocuments(self, directory):
         for file_name in os.listdir(directory):
-            document = open(os.path.join(directory, file_name), encoding="utf-8", errors="ignore").read()
-            yield utils.simple_preprocess(document)
+            if not file_name.startswith('.'):
+                document = open(os.path.join(directory, file_name), encoding="utf-8", errors="ignore").read()
+                yield utils.simple_preprocess(document)
 
 """=================================================="""
 """                       EOF                        """

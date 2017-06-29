@@ -3,33 +3,46 @@
 """=================================================="""
 """ AUTHOR: Brady Hammond                            """
 """ CREATED: 12/17/16                                """
-""" EDITED BY: -----                                 """
-""" EDITED: --/--/--                                 """
+""" EDITED BY: Brady Hammond                         """
+""" EDITED: 05/26/17                                 """
 """=================================================="""
 """                    FILE SETUP                    """
 """=================================================="""
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QMessageBox, QFileDialog, QApplication
-from gensim.models.wrappers import ldamallet
-from rippletagger.tagger import Tagger
-from nltk.stem.snowball import SnowballStemmer
+from collections import Counter
 from corpus import corpusObject
-from wordcloud import WordCloud
-import json
-import sys
-import os
-import logging
-import string
-import shutil
+import csv
 import datetime
+from gensim.models.wrappers import ldamallet
+from gensim.models import ldamodel
+import help
+import io
+import json
+import logging
+import matplotlib.pyplot as pyplot
 import multiprocessing
-
+from nltk.stem.snowball import SnowballStemmer
+from nltk import word_tokenize
+import os
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QMessageBox, QFileDialog
+import re
+from rippletagger.tagger import Tagger
+import shutil
+import string
+import sys
+import threading
+from wordcloud import WordCloud
+import word_cloud_color
 
 """=================================================="""
 """                CLASS DEFINITIONS                 """
 """=================================================="""
 
+class HelpWindow(QtWidgets.QDialog, help.Ui_help_dialog):
+    def __init__(self, parent=None):
+        QtWidgets.QDialog.__init__(self, parent)
+        self.setupUi(self)
 
 class Ui_main_window(object):
     def setupUi(self, main_window):
@@ -49,7 +62,7 @@ class Ui_main_window(object):
 
         self.byu_humanities_logo = QtWidgets.QLabel(self.grid_layout_widget_I)
         self.byu_humanities_logo.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.byu_humanities_logo.setPixmap(QtGui.QPixmap("images/logo.png"))
+        self.byu_humanities_logo.setPixmap(QtGui.QPixmap("logo.png"))
         self.byu_humanities_logo.setAlignment(QtCore.Qt.AlignCenter)
         self.byu_humanities_logo.setObjectName("byu_humanities_logo")
         self.grid_layout_main.addWidget(self.byu_humanities_logo, 0, 0, 1, 1)
@@ -58,7 +71,7 @@ class Ui_main_window(object):
         self.quit_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.quit_button.setObjectName("quit_button")
         self.quit_button.clicked.connect(main_window.close)
-        self.grid_layout_main.addWidget(self.quit_button, 1, 4, 1, 1)
+        self.grid_layout_main.addWidget(self.quit_button, 1, 3, 1, 1)
 
         self.parameters_box = QtWidgets.QGroupBox(self.grid_layout_widget_I)
         self.parameters_box.setTitle("")
@@ -83,7 +96,7 @@ class Ui_main_window(object):
         self.input_file_selector = QtWidgets.QToolButton(self.grid_layout_widget_II)
         self.input_file_selector.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("images/file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.input_file_selector.setIcon(icon)
         self.input_file_selector.setObjectName("input_file_selector")
         self.input_file_selector.clicked.connect(self.selectInputPath)
@@ -160,36 +173,31 @@ class Ui_main_window(object):
         self.sub_grid_layout_I.addWidget(self.topics_input, 5, 1, 1, 1)
 
         self.grid_layout_widget_III = QtWidgets.QWidget(self.parameters_box)
-        self.grid_layout_widget_III.setGeometry(QtCore.QRect(360, 30, 191, 273))
+        self.grid_layout_widget_III.setGeometry(QtCore.QRect(360, 22, 191, 281))
         self.grid_layout_widget_III.setObjectName("gridLayoutWidget_3")
         self.sub_grid_layout_II = QtWidgets.QGridLayout(self.grid_layout_widget_III)
         self.sub_grid_layout_II.setContentsMargins(0, 0, 0, 0)
         self.sub_grid_layout_II.setObjectName("sub_grid_layout_II")
 
-        self.punct_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
-        self.punct_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.punct_checkbox.setObjectName("punct_checkbox")
-        self.sub_grid_layout_II.addWidget(self.punct_checkbox, 6, 2, 1, 1)
-
         self.sconj_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.sconj_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.sconj_checkbox.setObjectName("sconj_checkbox")
-        self.sub_grid_layout_II.addWidget(self.sconj_checkbox, 5, 2, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.sconj_checkbox, 7, 2, 1, 1)
 
         self.pron_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.pron_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.pron_checkbox.setObjectName("pron_checkbox")
-        self.sub_grid_layout_II.addWidget(self.pron_checkbox, 4, 2, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.pron_checkbox, 6, 2, 1, 1)
 
         self.num_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.num_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.num_checkbox.setObjectName("num_checkbox")
-        self.sub_grid_layout_II.addWidget(self.num_checkbox, 2, 2, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.num_checkbox, 4, 2, 1, 1)
 
         self.cconj_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.cconj_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.cconj_checkbox.setObjectName("cconj_checkbox")
-        self.sub_grid_layout_II.addWidget(self.cconj_checkbox, 9, 1, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.cconj_checkbox, 2, 2, 1, 1)
 
         self.adj_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.adj_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
@@ -204,17 +212,12 @@ class Ui_main_window(object):
         self.det_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.det_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.det_checkbox.setObjectName("det_checkbox")
-        self.sub_grid_layout_II.addWidget(self.det_checkbox, 1, 2, 1, 1)
-
-        self.sym_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
-        self.sym_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.sym_checkbox.setObjectName("sym_checkbox")
-        self.sub_grid_layout_II.addWidget(self.sym_checkbox, 7, 2, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.det_checkbox, 3, 2, 1, 1)
 
         self.aux_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.aux_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.aux_checkbox.setObjectName("aux_checkbox")
-        self.sub_grid_layout_II.addWidget(self.aux_checkbox, 8, 1, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.aux_checkbox, 1, 2, 1, 1)
 
         self.propn_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.propn_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
@@ -224,12 +227,7 @@ class Ui_main_window(object):
         self.part_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
         self.part_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.part_checkbox.setObjectName("part_checkbox")
-        self.sub_grid_layout_II.addWidget(self.part_checkbox, 3, 2, 1, 1)
-
-        self.x_checkbox = QtWidgets.QCheckBox(self.grid_layout_widget_III)
-        self.x_checkbox.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.x_checkbox.setObjectName("x_checkbox")
-        self.sub_grid_layout_II.addWidget(self.x_checkbox, 8, 2, 1, 1)
+        self.sub_grid_layout_II.addWidget(self.part_checkbox, 5, 2, 1, 1)
 
         spacer_item = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.sub_grid_layout_II.addItem(spacer_item, 9, 0, 1, 1)
@@ -265,8 +263,9 @@ class Ui_main_window(object):
         self.help_button = QtWidgets.QPushButton(self.grid_layout_widget_III)
         self.help_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.help_button.setObjectName("help_button")
+        self.help_button.clicked.connect(self.openHelpDialog)
         self.sub_grid_layout_II.addWidget(self.help_button, 10, 1, 1, 2)
-        self.grid_layout_main.addWidget(self.parameters_box, 0, 1, 1, 6)
+        self.grid_layout_main.addWidget(self.parameters_box, 0, 1, 1, 5)
 
         self.run_model_button = QtWidgets.QPushButton(self.grid_layout_widget_I)
         self.run_model_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
@@ -279,13 +278,16 @@ class Ui_main_window(object):
         font.setPointSize(10)
         self.version_label.setFont(font)
         self.version_label.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignHCenter)
-        self.version_label.setObjectName("label")
-        self.grid_layout_main.addWidget(self.version_label, 1, 6, 1, 1)
+        self.version_label.setObjectName("version_label")
+        self.grid_layout_main.addWidget(self.version_label, 1, 5, 1, 1)
 
-        self.run_model_with_sql_button = QtWidgets.QPushButton(self.grid_layout_widget_I)
-        self.run_model_with_sql_button.setObjectName("run_model_with_sql_button")
-        self.grid_layout_main.addWidget(self.run_model_with_sql_button, 1, 3, 1, 1)
-
+        self.progress = 0
+        self.word_frequencies = Counter()
+        self.top_point_one_percent = []
+        self.top_point_two_five_percent = []
+        self.top_point_five_percent = []
+        self.documents = []
+        self.distributions = []
         self.parts_of_speech = []
         self.stop_words = []
         self.temporary_directory = ""
@@ -294,11 +296,14 @@ class Ui_main_window(object):
         self.scatter_plot_directory = ""
         self.temporary_directory_error = False
         self.stop_words_formatted_correctly = True
+        self.mallet = True
 
         self.retranslateUi(main_window)
         self.setCheckboxes()
         self.setLanguage()
         QtCore.QMetaObject.connectSlotsByName(main_window)
+
+    # ==================================================
 
     def retranslateUi(self, main_window):
         _translate = QtCore.QCoreApplication.translate
@@ -316,7 +321,6 @@ class Ui_main_window(object):
         self.language_label.setText(_translate("main_window", "Language:"))
         self.mallet_path_label.setText(_translate("main_window", "MALLET Path:"))
         self.output_file_selector.setText(_translate("main_window", "..."))
-        self.punct_checkbox.setText(_translate("main_window", "PUNCT"))
         self.sconj_checkbox.setText(_translate("main_window", "SCONJ"))
         self.pron_checkbox.setText(_translate("main_window", "PRON"))
         self.num_checkbox.setText(_translate("main_window", "NUM"))
@@ -324,11 +328,9 @@ class Ui_main_window(object):
         self.adj_checkbox.setText(_translate("main_window", "ADJ"))
         self.adv_checkbox.setText(_translate("main_window", "ADV"))
         self.det_checkbox.setText(_translate("main_window", "DET"))
-        self.sym_checkbox.setText(_translate("main_window", "SYM"))
         self.aux_checkbox.setText(_translate("main_window", "AUX"))
         self.propn_checkbox.setText(_translate("main_window", "PROPN"))
         self.part_checkbox.setText(_translate("main_window", "PART"))
-        self.x_checkbox.setText(_translate("main_window", "X"))
         self.intj_checkbox.setText(_translate("main_window", "INTJ"))
         self.verb_checkbox.setText(_translate("main_window", "VERB"))
         self.part_of_speech_label.setText(_translate("main_window", "Parts of Speech:"))
@@ -336,9 +338,8 @@ class Ui_main_window(object):
         self.adp_checkbox.setText(_translate("main_window", "ADP"))
         self.help_button.setText(_translate("main_window", "Help"))
         self.version_label.setText(_translate("main_window", "Version 1.0.3"))
-        self.run_model_with_sql_button.setText(_translate("main_window", "Run with SQL"))
 
-        preference_data_file = open("files/preference_data.json", "r")
+        preference_data_file = io.open("preference_data.json", "r")
         preference_data = json.load(preference_data_file)
         self.mallet_path_input.setText(_translate("main_window", preference_data["mallet_path"]))
         self.input_path_input.setText(_translate("main_window", preference_data["input_path"]))
@@ -348,8 +349,16 @@ class Ui_main_window(object):
         self.topics_input.setText(_translate("main_window", preference_data["topics"]))
         preference_data_file.close()
 
+    # ==================================================
+
+    def openHelpDialog(self):
+        dialog = HelpWindow(self)
+        dialog.exec_()
+
+    # ==================================================
+
     def setCheckboxes(self):
-        preference_data_file = open("files/preference_data.json", "r")
+        preference_data_file = io.open("preference_data.json", "r")
         preference_data = json.load(preference_data_file)
 
         if "ADJ" in preference_data["parts_of_speech"]:
@@ -380,27 +389,54 @@ class Ui_main_window(object):
             self.pron_checkbox.setChecked(True)
         if "SCONJ" in preference_data["parts_of_speech"]:
             self.sconj_checkbox.setChecked(True)
-        if "PUNCT" in preference_data["parts_of_speech"]:
-            self.punct_checkbox.setChecked(True)
-        if "SYM" in preference_data["parts_of_speech"]:
-            self.sym_checkbox.setChecked(True)
-        if "X" in preference_data["parts_of_speech"]:
-            self.x_checkbox.setChecked(True)
 
         preference_data_file.close()
 
-    def setLanguage(self):
-        preference_data_file = open("files/preference_data.json", "r")
+    # ==================================================
 
+    def setLanguage(self):
+        preference_data_file = io.open("preference_data.json", "r")
         preference_data = json.load(preference_data_file)
         self.language_input.setCurrentIndex(int(preference_data["language_index"]))
         preference_data_file.close()
 
+    # ==================================================
+
     def runModel(self):
         start_time = datetime.datetime.now()
-        print("Commencing program: " + str(start_time))
-        print("Checking input fields: " + str(datetime.datetime.now() - start_time))
+
+        print(str(datetime.datetime.now())[:-3] + " : INFO : reseting GUI object variables")
+        logging.info("reseting GUI object variables")
+        self.progress = 0
+        self.word_frequencies = Counter()
+        self.top_point_one_percent = []
+        self.top_point_two_five_percent = []
+        self.top_point_five_percent = []
+        self.documents = []
+        self.distributions = []
+        self.parts_of_speech = []
+        self.stop_words = []
+        self.temporary_directory = ""
+        self.passages_directory = ""
+        self.word_clouds_directory = ""
+        self.scatter_plot_directory = ""
+        self.temporary_directory_error = False
+        self.stop_words_formatted_correctly = True
+        self.mallet = True
+
+        print(str(datetime.datetime.now())[:-3] + " : INFO : starting progress bar")
+        logging.info("starting progress bar")
+        progress_bar = QtWidgets.QProgressDialog("Running Topic Model...", "Cancel", 0, 100, self)
+        progress_bar.setValue(self.progress)
+        progress_bar.setCancelButton(None)
+        progress_bar.setWindowModality(QtCore.Qt.WindowModal)
+        progress_bar.resize(400, 50)
+        progress_bar.show()
+
+        print(str(datetime.datetime.now())[:-3] + " : INFO : checking input fields")
+        logging.info("checking input fields")
         if self.mallet_path_input.text() == "":
+            '''
             message_box = QMessageBox()
             message_box.setIcon(QMessageBox.Warning)
             message_box.setWindowTitle("Invalid Parameters")
@@ -408,7 +444,23 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.mallet_path_input.setFocus()
+            progress_bar.close()
             return
+            '''
+            message_box = QMessageBox()
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setWindowTitle("Missing MALLET Path")
+            message_box.setText("You have not added a path to MALLET. If you choose to continue, gensim's LDA Model" +
+                                " will be used instead. Scatter plots are unavailable when using gensim's LDA Model" +
+                                ", and document distributions only show the most relevant topics. Are you sure you" +
+                                " wish to continue?")
+            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            response = message_box.exec_()
+
+            if response == QMessageBox.No:
+                progress_bar.close()
+                return
+            self.mallet = False
 
         elif not (os.path.isfile(self.mallet_path_input.text()) and os.access(self.mallet_path_input.text(), os.X_OK)):
             message_box = QMessageBox()
@@ -418,6 +470,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.mallet_path_input.setFocus()
+            progress_bar.close()
             return
 
         if self.input_path_input.text() == "":
@@ -428,6 +481,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.input_path_input.setFocus()
+            progress_bar.close()
             return
 
         elif not os.path.isdir(self.input_path_input.text()):
@@ -438,6 +492,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.input_path_input.setFocus()
+            progress_bar.close()
             return
 
         text_files = []
@@ -454,6 +509,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.input_path_input.setFocus()
+            progress_bar.close()
             return
 
         if self.output_path_input.text() == "":
@@ -464,6 +520,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.output_path_input.setFocus()
+            progress_bar.close()
             return
 
         elif not os.path.isdir(self.output_path_input.text()):
@@ -474,6 +531,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.output_path_input.setFocus()
+            progress_bar.close()
             return
 
         else:
@@ -488,6 +546,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.stop_words_input.setFocus()
+            progress_bar.close()
             return
 
         elif not self.stop_words_input.text().endswith(".txt") and self.stop_words_input.text() != "":
@@ -498,6 +557,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.stop_words_input.setFocus()
+            progress_bar.close()
             return
 
         if self.chunk_size_input.text() == "":
@@ -508,18 +568,23 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.chunk_size_input.setFocus()
+            progress_bar.close()
             return
 
         elif not self.chunk_size_input.text().isdigit():
-            message_box = QMessageBox()
-            message_box.setIcon(QMessageBox.Warning)
-            message_box.setWindowTitle("Invalid Parameters")
-            message_box.setText("The chunk size field doesn't seem quite right. Please remember that chunk size" +
-                                " should be a number.")
-            message_box.exec_()
+            if self.chunk_size_input.text().lower() == "document":
+                pass
+            else:
+                message_box = QMessageBox()
+                message_box.setIcon(QMessageBox.Warning)
+                message_box.setWindowTitle("Invalid Parameters")
+                message_box.setText("The chunk size field doesn't seem quite right. Please remember that chunk size" +
+                                    " should be a number or \"Document\".")
+                message_box.exec_()
 
-            self.chunk_size_input.setFocus()
-            return
+                self.chunk_size_input.setFocus()
+                progress_bar.close()
+                return
 
         if self.topics_input.text() == "":
             message_box = QMessageBox()
@@ -529,6 +594,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.topics_input.setFocus()
+            progress_bar.close()
             return
 
         elif not self.topics_input.text().isdigit():
@@ -540,6 +606,7 @@ class Ui_main_window(object):
             message_box.exec_()
 
             self.topics_input.setFocus()
+            progress_bar.close()
             return
 
         if (self.adj_checkbox.isChecked() == False and self.adv_checkbox.isChecked() == False
@@ -548,22 +615,28 @@ class Ui_main_window(object):
             and self.adp_checkbox.isChecked() == False and self.aux_checkbox.isChecked() == False
             and self.cconj_checkbox.isChecked() == False and self.det_checkbox.isChecked() == False
             and self.num_checkbox.isChecked() == False and self.part_checkbox.isChecked() == False
-            and self.pron_checkbox.isChecked() == False and self.sconj_checkbox.isChecked() == False
-            and self.punct_checkbox.isChecked() == False and self.sym_checkbox.isChecked() == False
-            and self.x_checkbox.isChecked() == False):
+            and self.pron_checkbox.isChecked() == False and self.sconj_checkbox.isChecked() == False):
             message_box = QMessageBox()
             message_box.setIcon(QMessageBox.Warning)
             message_box.setWindowTitle("Invalid Parameters")
             message_box.setText("There are currently no parts of speech selected. Please select at least one part of" +
                                 " speech to include.")
             message_box.exec_()
+            progress_bar.close()
             return
 
-        print("Recording parts of speech: " + str(datetime.datetime.now() - start_time))
+        self.progress += 1
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : recording parts of speech")
+        logging.info("recording parts of speech")
         self.addPartsOfSpeech()
 
-        print("Checking for stop words: " + str(datetime.datetime.now() - start_time))
+        self.progress += 1
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : checking for stop words")
+        logging.info("checking for stop words")
         if not self.stop_words_input.text() == "":
+            print(str(datetime.datetime.now())[:-3] + " : INFO : analyzing stop words")
             self.addStopWords()
 
         if not self.stop_words_formatted_correctly:
@@ -572,73 +645,235 @@ class Ui_main_window(object):
             message_box.setWindowTitle("Stop Words Format Error")
             message_box.setText("The provided stop words file is not formatted correctly. If you choose to" +
                                 " continue, there is a chance your stop words will not be properly removed. Are" +
-                                " you sure you want to continue?")
+                                " you sure you wish to continue?")
             message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             response = message_box.exec_()
 
             if response == QMessageBox.No:
+                progress_bar.close()
                 return
 
-        print("Saving preference data: " + str(datetime.datetime.now() - start_time))
+        self.progress += 1
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : saving preference data")
+        logging.info("saving preference data")
         self.savePreferenceData()
 
-        if not os.path.exists(self.output_path_input.text() + "/Passages"):
-            os.makedirs(self.output_path_input.text() + "/Passages")
-            self.passages_directory = self.output_path_input.text() + "/Passages"
-        else:
-            message_box = QMessageBox()
-            message_box.setIcon(QMessageBox.Warning)
-            message_box.setWindowTitle("Passages Folder Already Exists")
-            message_box.setText("It looks like you already have a folder named \"Passages\" in the specified" +
-                                " output directory. If you choose to continue, the contents of this folder will be" +
-                                " overwritten. Are you sure you wish to continue?")
-            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            response = message_box.exec_()
-
-            if response == QMessageBox.No:
-                return
-            else:
+        if not self.chunk_size_input.text().lower() == "document":
+            if not os.path.exists(self.output_path_input.text() + "/Passages"):
+                os.makedirs(self.output_path_input.text() + "/Passages")
                 self.passages_directory = self.output_path_input.text() + "/Passages"
-                for file in os.listdir(self.passages_directory):
-                    file_path = os.path.join(self.passages_directory, file)
-                    try:
-                        if os.path.isfile(file_path):
-                            os.unlink(file_path)
-                        elif os.path.isdir(file_path): shutil.rmtree(file_path, ignore_errors=True)
-                    except Exception as exception:
-                        print(exception)
 
-        print("Formatting corpus:" + str(datetime.datetime.now() - start_time))
-        self.formatCorpus()
+            else:
+                message_box = QMessageBox()
+                message_box.setIcon(QMessageBox.Warning)
+                message_box.setWindowTitle("Passages Folder Already Exists")
+                message_box.setText("It looks like you already have a folder named \"Passages\" in the specified" +
+                                    " output directory. If you choose to continue, the contents of this folder will" +
+                                    " be overwritten. Are you sure you wish to continue?")
+                message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                response = message_box.exec_()
+
+                if response == QMessageBox.No:
+                    progress_bar.close()
+                    return
+                else:
+                    self.passages_directory = self.output_path_input.text() + "/Passages"
+                    for file in os.listdir(self.passages_directory):
+                        file_path = os.path.join(self.passages_directory, file)
+                        try:
+                            if os.path.isfile(file_path):
+                                os.unlink(file_path)
+                            elif os.path.isdir(file_path): shutil.rmtree(file_path, ignore_errors=True)
+                        except Exception as exception:
+                            #print(exception)
+                            logging.log(exception)
+
+        self.progress += 1
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : formatting corpus")
+        logging.info("formatting corpus")
+
+        self.formatCorpus(progress_bar)
         if self.temporary_directory_error:
+            progress_bar.close()
             return
 
-        print("Total preperation time: " + str(datetime.datetime.now() - start_time))
+        self.progress += 24
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : starting topic model")
+        logging.info("starting topic model")
+
         logging.basicConfig(format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO)
         corpus = corpusObject(self.temporary_directory)
 
-        model = ldamallet.LdaMallet(self.mallet_path_input.text(), corpus, num_topics=int(self.topics_input.text()),
+        if self.mallet == True:
+            model = ldamallet.LdaMallet(self.mallet_path_input.text(), corpus, num_topics=int(self.topics_input.text()),
                                     id2word=corpus.dictionary)
-
-        shutil.rmtree(self.temporary_directory, ignore_errors=True)
-
-        if not os.path.exists(self.output_path_input.text() + "/Word Clouds"):
-            os.makedirs(self.output_path_input.text() + "/Word Clouds")
-            self.word_clouds_directory = self.output_path_input.text() + "/Word Clouds"
         else:
+            model = ldamodel.LdaModel(corpus=corpus, num_topics=int(self.topics_input.text()),
+                                      id2word=corpus.dictionary, passes=10)
+
+        self.progress += 16
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : saving topics")
+        logging.info("saving topics")
+
+        if os.path.isfile(self.output_path_input.text() + "/topics.csv"):
             message_box = QMessageBox()
             message_box.setIcon(QMessageBox.Warning)
-            message_box.setWindowTitle("Passages Folder Already Exists")
-            message_box.setText("It looks like you already have a folder named \"Word Clouds\" in the specified" +
+            message_box.setWindowTitle("Topics Spreadsheet Already Exists")
+            message_box.setText("It looks like you already have a file named \"topics.csv\" in the specified" +
                                 " output directory. If you choose to continue, the contents of this folder will be" +
                                 " overwritten. Are you sure you wish to continue?")
             message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             response = message_box.exec_()
 
             if response == QMessageBox.No:
+                shutil.rmtree(self.temporary_directory, ignore_errors=True)
+                progress_bar.close()
+                return
+        output_file = io.open(self.output_path_input.text() + "/topics.csv", "w", encoding="utf-8")
+        csv_writer = csv.writer(output_file)
+
+        for i in range(0, int(self.topics_input.text())):
+            if self.mallet == True:
+                row_body = model.show_topic(i, num_words=20)
+            else:
+                row_body = model.show_topic(i, topn=20)
+            row_body.insert(0, "Topic " + str(i + 1))
+            csv_writer.writerow(row_body)
+
+        output_file.close()
+
+        self.progress += 4
+        progress_bar.setValue(self.progress)
+        print(str(datetime.datetime.now())[:-3] + " : INFO : saving distributions")
+        logging.info("saving distributions")
+
+        if os.path.isfile(self.output_path_input.text() + "/distributions.csv"):
+            message_box = QMessageBox()
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setWindowTitle("Distributions Spreadsheet Already Exists")
+            message_box.setText("It looks like you already have a file named \"distributions.csv\" in the specified" +
+                                " output directory. If you choose to continue, the contents of this folder will be" +
+                                " overwritten. Are you sure you wish to continue?")
+            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            response = message_box.exec_()
+
+            if response == QMessageBox.No:
+                shutil.rmtree(self.temporary_directory, ignore_errors=True)
+                progress_bar.close()
+                return
+
+        output_file = io.open(self.output_path_input.text() + "/distributions.csv", "w", encoding="utf-8")
+        csv_writer = csv.writer(output_file)
+
+        if self.mallet == True:
+            self.distributions = [distribution for distribution in model.load_document_topics()]
+
+        else:
+            for subdirectory, directories, files in os.walk(self.temporary_directory):
+                for file in files:
+                    if not file.startswith('.'):
+                        file_path = os.path.join(self.temporary_directory, file)
+                        try:
+                            if os.path.isfile(file_path):
+                                working_file = io.open(file_path, "r", encoding="utf-8", errors="ignore")
+                                self.distributions.append(model.get_document_topics(corpus.dictionary.doc2bow(
+                                    word_tokenize(working_file.read()))))
+
+                        except Exception as exception:
+                            print(exception)
+                            logging.info(exception)
+
+        if self.chunk_size_input.text().lower() == "document":
+            for subdirectory, directories, files in os.walk(self.input_path_input.text()):
+                for file in files:
+                    if not file.startswith('.'):
+                        self.documents.append(os.path.splitext(file)[0])
+
+        else:
+            for subdirectory, directories, files in os.walk(self.temporary_directory):
+                for file in files:
+                    if not file.startswith('.'):
+                        self.documents.append(os.path.splitext(file)[0])
+
+        for i in range(0, (len(self.distributions) - 1)):
+            row_body = list(self.distributions[i])
+            row_body.insert(0, self.documents[i])
+            csv_writer.writerow(row_body)
+
+        output_file.close()
+
+        self.progress += 4
+        progress_bar.setValue(self.progress)
+
+        if self.mallet == True:
+            print(str(datetime.datetime.now())[:-3] + " : INFO : starting scatter plot generation")
+            logging.info("starting scatter plot generation")
+            if not os.path.exists(self.output_path_input.text() + "/Scatter_Plots"):
+                os.makedirs(self.output_path_input.text() + "/Scatter_Plots")
+                self.scatter_plot_directory = self.output_path_input.text() + "/Scatter_Plots"
+            else:
+                message_box = QMessageBox()
+                message_box.setIcon(QMessageBox.Warning)
+                message_box.setWindowTitle("Scatter Plot Folder Already Exists")
+                message_box.setText("It looks like you already have a folder named \"Scatter_Plots\" in the specified" +
+                                    " output directory. If you choose to continue, the contents of this folder will" +
+                                    " be overwritten. Are you sure you wish to continue?")
+                message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                response = message_box.exec_()
+
+                if response == QMessageBox.No:
+                    shutil.rmtree(self.temporary_directory, ignore_errors=True)
+                    progress_bar.close()
+                    return
+                else:
+                    self.scatter_plot_directory = self.output_path_input.text() + "/Scatter_Plots"
+                    for file in os.listdir(self.scatter_plot_directory):
+                        file_path = os.path.join(self.scatter_plot_directory, file)
+                        try:
+                            if os.path.isfile(file_path):
+                                os.unlink(file_path)
+                            elif os.path.isdir(file_path):
+                                shutil.rmtree(file_path, ignore_errors=True)
+                        except Exception as exception:
+                            print(exception)
+                            logging.info(exception)
+
+            increment = 24/(int(self.topics_input.text()))
+            for i in range(int(self.topics_input.text())):
+                self.generateScatterPlots(i)
+                self.progress += increment
+                progress_bar.setValue(self.progress)
+
+        else:
+            self.progress += 24
+            progress_bar.setValue(self.progress)
+
+        print(str(datetime.datetime.now())[:-3] + " : INFO : starting word cloud generation")
+        logging.info("starting word cloud generation")
+
+        if not os.path.exists(self.output_path_input.text() + "/Word_Clouds"):
+            os.makedirs(self.output_path_input.text() + "/Word_Clouds")
+            self.word_clouds_directory = self.output_path_input.text() + "/Word_Clouds"
+        else:
+            message_box = QMessageBox()
+            message_box.setIcon(QMessageBox.Warning)
+            message_box.setWindowTitle("Word Cloud Folder Already Exists")
+            message_box.setText("It looks like you already have a folder named \"Word_Clouds\" in the specified" +
+                                " output directory. If you choose to continue, the contents of this folder will be" +
+                                " overwritten. Are you sure you wish to continue?")
+            message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            response = message_box.exec_()
+
+            if response == QMessageBox.No:
+                shutil.rmtree(self.temporary_directory, ignore_errors=True)
+                progress_bar.close()
                 return
             else:
-                self.word_clouds_directory = self.output_path_input.text() + "/Word Clouds"
+                self.word_clouds_directory = self.output_path_input.text() + "/Word_Clouds"
                 for file in os.listdir(self.word_clouds_directory):
                     file_path = os.path.join(self.word_clouds_directory, file)
                     try:
@@ -647,22 +882,119 @@ class Ui_main_window(object):
                         elif os.path.isdir(file_path): shutil.rmtree(file_path, ignore_errors=True)
                     except Exception as exception:
                         print(exception)
+                        logging.info(exception)
 
+        jobs = []
+        for i in range(int(self.topics_input.text())):
+            process = multiprocessing.Process(target=self.generateWordClouds, args=(i, model))
+            jobs.append(process)
+            process.start()
+
+        for job in jobs:
+            job.join()
+
+            '''thread = threading.Thread(target=self.generateWordClouds, args=(i, model))
+            jobs.append(thread)
+            thread.start()
+
+        for job in jobs:
+            job.join()'''
+
+        self.progress += 25
+        progress_bar.setValue(self.progress)
+        shutil.rmtree(self.temporary_directory, ignore_errors=True)
+        progress_bar.close()
+        print(str(datetime.datetime.now())[:-3] + " : INFO : final runtime: " +
+              str(datetime.datetime.now() - start_time))
+        logging.info("final runtime: " + str(datetime.datetime.now() - start_time))
+
+    # ==================================================
+
+    def generateWordClouds(self, number, model):
         word_cloud = WordCloud(
             background_color="white",
-            max_words=2000,
+            max_words=100,
             width=1024,
             height=1024,
         )
 
-        for i in range(int(self.topics_input.text())):
-            tuples = model.show_topic(i, num_words=1000)
-            rearranged_tuples = [(entry[1], entry[0]) for entry in tuples]
-            word_cloud.generate_from_frequencies(rearranged_tuples)
-            word_cloud.to_file(self.word_clouds_directory + "/word_cloud_" + str(i + 1) + ".png")
+        color_to_words = {
+            "#2bf72d": self.top_point_one_percent,
+            "#9e40ed": self.top_point_two_five_percent,
+            "#103ffb": self.top_point_five_percent
+        }
+
+        default_color = "black"
+        grouped_color_function = word_cloud_color.GroupedColorFunc(color_to_words, default_color)
+
+        if self.mallet == True:
+            tuples = model.show_topic(number, num_words=100)
+            frequency_dictionary = dict([(entry[1], entry[0]) for entry in tuples])
+        else:
+            tuples = model.show_topic(number, topn=100)
+            frequency_dictionary = dict(tuples)
+        try:
+            word_cloud.generate_from_frequencies(frequency_dictionary)
+            word_cloud.recolor(color_func=grouped_color_function)
+            word_cloud.to_file(self.word_clouds_directory + "/word_cloud_" + str(number + 1) + ".png")
+        except Exception as exception:
+            logging.info(exception)
+
+        '''
+        self.progress += increment
+        progress_bar.setValue(self.progress)
+        '''
+
+    # ==================================================
+
+    def generateScatterPlots(self, number):
+        document_saturations = []
+
+        for distribution in self.distributions:
+            document_saturations.append(distribution[number][1])
+
+        x = range(0, len(self.documents))
+
+        figure = pyplot.figure(figsize=(10,5), dpi=100)
+        figure.suptitle("Topic " + str(number + 1) + " Distribution", fontsize=14)
+        figure.add_subplot(1, 1, 1)
+
+        '''
+        if self.chunk_size_input.text().lower() == "document":
+            pyplot.xticks(x, self.documents, rotation="vertical")
+        else:
+            ticks = []
+            for i in range(len(self.documents) - 1):
+                if i == (len(self.documents) - 1):
+                    ticks.append(re.sub("_\d*$", "", self.documents[i]))
+                elif re.sub("_\d*$", "", self.documents[i]) == re.sub("_\d*$", "", self.documents[i+1]):
+                    ticks.append(self.documents[i])
+                else:
+                    ticks.append(re.sub("_\d*$", "", self.documents[i]))
+
+            pyplot.xticks(x, ticks, rotation="vertical")
+
+            axes = pyplot.axes()
+            for label in axes.xaxis.get_ticklabels():
+                if re.search("_\d*$", label.get_text()):
+                    label.set_visible(False)
+        
+            axes.xaxis.set_ticks_position("none")
+        '''
+        for label in pyplot.axes().xaxis.get_ticklabels():
+            label.set_visible(False)
+
+        pyplot.axes().xaxis.set_ticks_position("none")
+
+        pyplot.scatter(x, document_saturations, alpha=0.8, color="#3097d1")
+        pyplot.savefig(self.scatter_plot_directory + "/scatter_plot_" + str(number + 1) + ".png")
+        pyplot.clf()
+        pyplot.close()
+
+    # ==================================================
 
     def savePreferenceData(self):
-        preference_data_file = open("files/preference_data.json", "w")
+        preference_data_file = io.open("preference_data.json", "w")
         preference_data = {
             "mallet_path": self.mallet_path_input.text(),
             "input_path": self.input_path_input.text(),
@@ -676,12 +1008,16 @@ class Ui_main_window(object):
         json.dump(preference_data, preference_data_file)
         preference_data_file.close()
 
+    # ==================================================
+
     def selectMalletPath(self):
         file_dialog = QFileDialog()
 
         file_dialog.setFileMode(QFileDialog.ExistingFile)
         selected_file = file_dialog.getOpenFileName(caption="Select MALLET Path")
         self.mallet_path_input.setText(selected_file[0])
+
+    # ==================================================
 
     def selectInputPath(self):
         file_dialog = QFileDialog()
@@ -690,12 +1026,16 @@ class Ui_main_window(object):
         selected_file = file_dialog.getExistingDirectory(caption="Select Input Path")
         self.input_path_input.setText(selected_file)
 
+    # ==================================================
+
     def selectOutputPath(self):
         file_dialog = QFileDialog()
 
         file_dialog.setFileMode(QFileDialog.Directory)
         selected_file = file_dialog.getExistingDirectory(caption="Select Output Path")
         self.output_path_input.setText(selected_file)
+
+    # ==================================================
 
     def selectStopWordsPath(self):
         file_dialog = QFileDialog()
@@ -704,11 +1044,15 @@ class Ui_main_window(object):
         selected_file = file_dialog.getOpenFileName(caption="Select Stop Words Path")
         self.stop_words_input.setText(selected_file[0])
 
+    # ==================================================
+
     def chunkCorpus(self, corpus, number):
         for i in range(0, len(corpus), number):
-            yield corpus[i:i + number]
+                yield corpus[i:i + number]
 
-    def formatCorpus(self):
+    # ==================================================
+
+    def formatCorpus(self, progress_bar):
         if not os.path.exists(self.output_path_input.text() + "/Temp"):
             os.makedirs(self.output_path_input.text() + "/Temp")
             self.temporary_directory = self.output_path_input.text() + "/Temp"
@@ -725,40 +1069,83 @@ class Ui_main_window(object):
 
             if response == QMessageBox.No:
                 self.temporary_directory_error = False
+                progress_bar.close()
                 return
             else:
                 self.temporary_directory = self.output_path_input.text() + "/Temp"
                 self.temporary_directory = self.output_path_input.text() + "/Temp"
                 for file in os.listdir(self.temporary_directory):
-                    file_path = os.path.join(self.temporary_directory, file)
-                    try:
-                        if os.path.isfile(file_path):
-                            os.unlink(file_path)
-                        elif os.path.isdir(file_path):
-                            shutil.rmtree(file_path, ignore_errors=True)
-                    except Exception as exception:
-                        print(exception)
+                    if not file.startswith('.'):
+                        file_path = os.path.join(self.temporary_directory, file)
+                        try:
+                            if os.path.isfile(file_path):
+                                os.unlink(file_path)
+                            elif os.path.isdir(file_path):
+                                shutil.rmtree(file_path, ignore_errors=True)
+                        except Exception as exception:
+                            print(exception)
+
+        '''
+        increment = 24/len([file for file in os.listdir(self.input_path_input.text()) if not file.startswith('.')])
+        '''
 
         for subdirectory, directories, files in os.walk(self.input_path_input.text()):
             jobs = []
             for file in files:
-                process = multiprocessing.Process(target=self.processFile, args=(subdirectory, file))
-                jobs.append(process)
-                process.start()
+                if not file.startswith('.'):
+                    process = multiprocessing.Process(target=self.processFile, args=(subdirectory, file))
+                    jobs.append(process)
+                    process.start()
             for job in jobs:
                 job.join()
 
+                '''
+                thread = threading.Thread(target=self.processFile, args=(subdirectory, file, progress_bar, increment))
+                jobs.append(thread)
+                thread.start()
+
+            for job in jobs:
+                    job.join()
+                    '''
+
+        for file in os.listdir(self.temporary_directory):
+            if not file.startswith('.'):
+                file_path = os.path.join(self.temporary_directory, file)
+                try:
+                    if os.path.isfile(file_path):
+                        working_file = io.open(file_path, "r", encoding="utf-8", errors="ignore")
+                        for line in working_file:
+                            self.word_frequencies.update(line.split())
+
+                except Exception as exception:
+                    print(exception)
+
+        words_total = len(self.word_frequencies)
+        point_one_percent = int(float(words_total) * 0.001)
+        point_two_five_percent = int(float(words_total) * 0.0025)
+        point_five_percent = int(float(words_total) * 0.005)
+
+        for word, frequency in self.word_frequencies.most_common(point_one_percent):
+            self.top_point_one_percent.append(word)
+
+        for word, frequency in self.word_frequencies.most_common(point_two_five_percent):
+            if not word in self.top_point_one_percent:
+                self.top_point_two_five_percent.append(word)
+
+        for word, frequency in self.word_frequencies.most_common(point_five_percent):
+            if not word in self.top_point_one_percent:
+                if not word in self.top_point_two_five_percent:
+                    self.top_point_five_percent.append(word)
+
+    # ==================================================
 
     def processFile(self, subdirectory, file):
         file_name = os.path.splitext(file)[0]
         file_path = os.path.join(subdirectory, file)
 
-        working_file = open(file_path, encoding="utf-8", errors="ignore")
+        working_file = io.open(file_path, encoding="utf-8", errors="ignore")
         working_file_text = working_file.read()
         working_file_text = working_file_text.lower().rstrip("/n")
-        if not self.punct_checkbox.isChecked():
-            working_file_text = "".join(i for i in working_file_text if i not in string.punctuation)
-        working_file.close()
 
         if self.language_input.currentText() == "Danish":
             stemmer = SnowballStemmer("danish")
@@ -777,27 +1164,70 @@ class Ui_main_window(object):
             tagger = Tagger(language="en-2")
 
         tagged_text = tagger.tag(working_file_text)
-        chunks = list(self.chunkCorpus(tagged_text, int(self.chunk_size_input.text())))
+        if self.chunk_size_input.text().lower() == "document":
 
-        chunk_number = 1
-        for chunk in chunks:
-            chunked_file = open(self.passages_directory + "/" + file_name + "_" + str(chunk_number) +
-                                ".txt", "w")
-            for tag in chunk:
-                chunked_file.write(tag[0])
-            chunked_file.close()
-
-            chunked_file = open(self.temporary_directory + "/" + file_name + "_" + str(chunk_number) +
-                                ".txt", "w")
-            for tag in chunk:
+            chunked_file = io.open(self.temporary_directory + "/" + file_name + ".txt", "w", encoding="utf-8")
+            for tag in tagged_text:
                 if tag[1] in self.parts_of_speech:
-                    if tag[0] in self.stop_words:
+                    if re.sub("»|«","", tag[0].translate(str.maketrans('','',string.punctuation))) in self.stop_words:
                         pass
                     else:
-                        stemmed_tag = stemmer.stem(tag[0])
+                        stemmed_tag = stemmer.stem(re.sub("»|«","", tag[0].translate(
+                            str.maketrans('','',string.punctuation))))
                         chunked_file.write(stemmed_tag + " ")
             chunked_file.close()
-            chunk_number += 1
+
+        else:
+            chunks = list(self.chunkCorpus(tagged_text, int(self.chunk_size_input.text())))
+
+            chunk_number = 1
+            for chunk in chunks:
+                if len(str(chunk_number)) == 1:
+                    chunked_file = io.open(self.passages_directory + "/" + file_name + "_000" + str(chunk_number) +
+                                    ".txt", "w", encoding="utf-8")
+                elif len(str(chunk_number)) == 2:
+                    chunked_file = io.open(self.passages_directory + "/" + file_name + "_00" + str(chunk_number) +
+                                        ".txt", "w", encoding="utf-8")
+                elif len(str(chunk_number)) == 3:
+                    chunked_file = io.open(self.passages_directory + "/" + file_name + "_0" + str(chunk_number) +
+                                        ".txt", "w", encoding="utf-8")
+                else:
+                    chunked_file = io.open(self.passages_directory + "/" + file_name + "_" + str(chunk_number) +
+                                    ".txt", "w", encoding="utf-8")
+                for tag in chunk:
+                    chunked_file.write(tag[0] + " ")
+                chunked_file.close()
+
+                if len(str(chunk_number)) == 1:
+                    chunked_file = io.open(self.temporary_directory + "/" + file_name + "_000" + str(chunk_number) +
+                                    ".txt", "w", encoding="utf-8")
+                elif len(str(chunk_number)) == 2:
+                    chunked_file = io.open(self.temporary_directory + "/" + file_name + "_00" + str(chunk_number) +
+                                        ".txt", "w", encoding="utf-8")
+                elif len(str(chunk_number)) == 3:
+                    chunked_file = io.open(self.temporary_directory + "/" + file_name + "_0" + str(chunk_number) +
+                                        ".txt", "w", encoding="utf-8")
+                else:
+                    chunked_file = io.open(self.temporary_directory + "/" + file_name + "_" + str(chunk_number) +
+                                    ".txt", "w", encoding="utf-8")
+
+                for tag in chunk:
+                    if tag[1] in self.parts_of_speech:
+                        if re.sub("»|«","", tag[0].translate(str.maketrans('','',string.punctuation))) in self.stop_words:
+                            pass
+                        else:
+                            stemmed_tag = stemmer.stem(re.sub("»|«","", tag[0].translate(
+                                str.maketrans('','',string.punctuation))))
+                            chunked_file.write(stemmed_tag + " ")
+                chunked_file.close()
+                chunk_number += 1
+
+        '''
+        self.progress += increment
+        progress_bar.setValue(self.progress)
+        '''
+
+    # ==================================================
 
     def addPartsOfSpeech(self):
         if self.adj_checkbox.isChecked():
@@ -828,15 +1258,11 @@ class Ui_main_window(object):
             self.parts_of_speech.append("PRON")
         if self.sconj_checkbox.isChecked():
             self.parts_of_speech.append("SCONJ")
-        if self.punct_checkbox.isChecked():
-            self.parts_of_speech.append("PUNCT")
-        if self.sym_checkbox.isChecked():
-            self.parts_of_speech.append("SYM")
-        if self.x_checkbox.isChecked():
-            self.parts_of_speech.append("X")
+
+    # ==================================================
 
     def addStopWords(self):
-        with open(self.stop_words_input.text()) as stop_words_file:
+        with io.open(self.stop_words_input.text(), encoding="utf-8") as stop_words_file:
             for line in stop_words_file:
                 if line.startswith("#"):
                     pass
@@ -850,19 +1276,6 @@ class Ui_main_window(object):
                     self.stop_words_formatted_correctly = True
                     self.stop_words.append(line)
             stop_words_file.close()
-
-
-"""=================================================="""
-"""                       MAIN                       """
-"""=================================================="""
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = QtWidgets.QWidget()
-    ui = Ui_main_window()
-    ui.setupUi(window)
-    window.show()
-    sys.exit(app.exec_())
 
 """=================================================="""
 """                       EOF                        """
