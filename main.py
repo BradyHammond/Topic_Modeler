@@ -1,15 +1,14 @@
 """=================================================="""
-"""                  TOPIC MODELER                   """
+"""                       MAIN                       """
 """=================================================="""
 """ AUTHOR: Brady Hammond                            """
 """ CREATED: 12/17/16                                """
 """ EDITED BY: Brady Hammond                         """
-""" EDITED: 05/26/17                                 """
+""" EDITED: 06/29/17                                 """
 """=================================================="""
 """                    FILE SETUP                    """
 """=================================================="""
 
-import logging
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QApplication
 import sys
@@ -29,7 +28,6 @@ class MainWindow(QtWidgets.QDialog, topic_modeler.Ui_main_window):
 """=================================================="""
 
 if __name__ == "__main__":
-    #logging.basicConfig(format="%(asctime)s : %(levelname)s : %(message)s", filename="/topic_modeler.log", level=logging.INFO)
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()

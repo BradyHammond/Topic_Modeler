@@ -4,7 +4,7 @@
 """ AUTHOR: Brady Hammond                            """
 """ CREATED: 12/17/16                                """
 """ EDITED BY: Brady Hammond                         """
-""" EDITED: 05/26/17                                 """
+""" EDITED: 06/29/17                                 """
 """=================================================="""
 """                    FILE SETUP                    """
 """=================================================="""
@@ -62,7 +62,7 @@ class Ui_main_window(object):
 
         self.byu_humanities_logo = QtWidgets.QLabel(self.grid_layout_widget_I)
         self.byu_humanities_logo.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.byu_humanities_logo.setPixmap(QtGui.QPixmap("logo.png"))
+        self.byu_humanities_logo.setPixmap(QtGui.QPixmap("resources/images/logo.png"))
         self.byu_humanities_logo.setAlignment(QtCore.Qt.AlignCenter)
         self.byu_humanities_logo.setObjectName("byu_humanities_logo")
         self.grid_layout_main.addWidget(self.byu_humanities_logo, 0, 0, 1, 1)
@@ -96,7 +96,7 @@ class Ui_main_window(object):
         self.input_file_selector = QtWidgets.QToolButton(self.grid_layout_widget_II)
         self.input_file_selector.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("resources/images/file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.input_file_selector.setIcon(icon)
         self.input_file_selector.setObjectName("input_file_selector")
         self.input_file_selector.clicked.connect(self.selectInputPath)
@@ -339,7 +339,7 @@ class Ui_main_window(object):
         self.help_button.setText(_translate("main_window", "Help"))
         self.version_label.setText(_translate("main_window", "Version 1.0.3"))
 
-        preference_data_file = io.open("preference_data.json", "r")
+        preference_data_file = io.open("resources/files/preference_data.json", "r")
         preference_data = json.load(preference_data_file)
         self.mallet_path_input.setText(_translate("main_window", preference_data["mallet_path"]))
         self.input_path_input.setText(_translate("main_window", preference_data["input_path"]))
@@ -358,7 +358,7 @@ class Ui_main_window(object):
     # ==================================================
 
     def setCheckboxes(self):
-        preference_data_file = io.open("preference_data.json", "r")
+        preference_data_file = io.open("resources/files/preference_data.json", "r")
         preference_data = json.load(preference_data_file)
 
         if "ADJ" in preference_data["parts_of_speech"]:
@@ -395,7 +395,7 @@ class Ui_main_window(object):
     # ==================================================
 
     def setLanguage(self):
-        preference_data_file = io.open("preference_data.json", "r")
+        preference_data_file = io.open("resources/files/preference_data.json", "r")
         preference_data = json.load(preference_data_file)
         self.language_input.setCurrentIndex(int(preference_data["language_index"]))
         preference_data_file.close()
@@ -893,13 +893,6 @@ class Ui_main_window(object):
         for job in jobs:
             job.join()
 
-            '''thread = threading.Thread(target=self.generateWordClouds, args=(i, model))
-            jobs.append(thread)
-            thread.start()
-
-        for job in jobs:
-            job.join()'''
-
         self.progress += 25
         progress_bar.setValue(self.progress)
         shutil.rmtree(self.temporary_directory, ignore_errors=True)
@@ -940,11 +933,6 @@ class Ui_main_window(object):
         except Exception as exception:
             logging.info(exception)
 
-        '''
-        self.progress += increment
-        progress_bar.setValue(self.progress)
-        '''
-
     # ==================================================
 
     def generateScatterPlots(self, number):
@@ -959,7 +947,7 @@ class Ui_main_window(object):
         figure.suptitle("Topic " + str(number + 1) + " Distribution", fontsize=14)
         figure.add_subplot(1, 1, 1)
 
-        '''
+        ''' *** Add Document Titles to Scatter Plots ***
         if self.chunk_size_input.text().lower() == "document":
             pyplot.xticks(x, self.documents, rotation="vertical")
         else:
@@ -994,7 +982,7 @@ class Ui_main_window(object):
     # ==================================================
 
     def savePreferenceData(self):
-        preference_data_file = io.open("preference_data.json", "w")
+        preference_data_file = io.open("resources/files/preference_data.json", "w")
         preference_data = {
             "mallet_path": self.mallet_path_input.text(),
             "input_path": self.input_path_input.text(),
@@ -1098,15 +1086,6 @@ class Ui_main_window(object):
                     process.start()
             for job in jobs:
                 job.join()
-
-                '''
-                thread = threading.Thread(target=self.processFile, args=(subdirectory, file, progress_bar, increment))
-                jobs.append(thread)
-                thread.start()
-
-            for job in jobs:
-                    job.join()
-                    '''
 
         for file in os.listdir(self.temporary_directory):
             if not file.startswith('.'):
@@ -1221,11 +1200,6 @@ class Ui_main_window(object):
                             chunked_file.write(stemmed_tag + " ")
                 chunked_file.close()
                 chunk_number += 1
-
-        '''
-        self.progress += increment
-        progress_bar.setValue(self.progress)
-        '''
 
     # ==================================================
 

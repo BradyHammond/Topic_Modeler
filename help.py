@@ -1,10 +1,10 @@
 """=================================================="""
-"""                  TOPIC MODELER                   """
+"""                       HELP                       """
 """=================================================="""
 """ AUTHOR: Brady Hammond                            """
 """ CREATED: 12/17/16                                """
 """ EDITED BY: Brady Hammond                         """
-""" EDITED: 05/26/17                                 """
+""" EDITED: 06/29/17                                 """
 """=================================================="""
 """                    FILE SETUP                    """
 """=================================================="""
@@ -42,7 +42,7 @@ class Ui_help_dialog(object):
         self.clear_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         self.clear_button.setText("")
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("x_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("resources/images/x_icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.clear_button.setIcon(icon)
         self.clear_button.setAutoDefault(False)
         self.clear_button.setFlat(True)
@@ -290,9 +290,11 @@ class Ui_help_dialog(object):
             search_result = ""
             for index in indices:
                 paragraph_list = self.help_texts[index].split("</p>")
+
                 for paragraph in paragraph_list:
                     paragraph = re.sub("<p>", "", paragraph)
                     individual_search_entry = "<i>" + self.help_options[index][:-1] + ":</i> "
+
                     if self.search_bar.text().lower() in paragraph.lower():
                         match = re.search(regex_string, paragraph)
 
