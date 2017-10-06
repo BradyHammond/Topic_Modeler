@@ -23,9 +23,13 @@ class corpusObject(object):
         self.dictionary = corpora.Dictionary(self.iterateDocuments(directory))
         self.dictionary.filter_extremes()
 
+    # ==================================================
+
     def __iter__(self):
         for tokens in self.iterateDocuments(self.directory):
             yield self.dictionary.doc2bow(tokens)
+
+    # ==================================================
 
     def iterateDocuments(self, directory):
         for file_name in os.listdir(directory):

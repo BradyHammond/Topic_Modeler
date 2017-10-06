@@ -1,1 +1,1 @@
-{"chunk_size": "", "stop_words_path": "", "parts_of_speech": [], "topics": "", "mallet_path": "", "input_path": "", "language_index": 0, "output_path": ""}
+{"mallet_path": "", "stop_words_path": "", "parts_of_speech": [], "language_index": 0, "output_path": "", "chunk_size": "", "input_path": "", "topics": ""}

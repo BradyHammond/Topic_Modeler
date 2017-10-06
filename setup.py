@@ -38,11 +38,11 @@ DATA_FILES = ['resources/images/file.png', 'resources/images/logo.png', 'resourc
 OPTIONS = {
     'argv_emulation': True,
     'iconfile': 'resources/images/logo.icns',
-    'packages': ['PIL', 'PyQt5', 'rippletagger', 'wordcloud'],
+    'packages': ['PIL', 'PyQt5', 'rippletagger', 'wordcloud', 'gensim', 'nltk', 'matplotlib'],
     'plist': {
         'CFBundleName': 'Scandinavian Topic Modeler',
-        'CFBundleShortVersionString': '1.0.3',
-        'CFBundleVersion': '1.0.3',
+        'CFBundleShortVersionString': '1.1.1',
+        'CFBundleVersion': '1.1.1',
         'CFBundleIdentifier': 'org.nordicdh.topic.modeler',
         'NSHumanReadableCopyright': '©Brigham Young University 2017',
         'CFBundleDevelopmentRegion': 'English'

@@ -18,6 +18,7 @@ import topic_modeler
 """                CLASS DEFINITIONS                 """
 """=================================================="""
 
+# Defines the main window class
 class MainWindow(QtWidgets.QDialog, topic_modeler.Ui_main_window):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
@@ -27,6 +28,7 @@ class MainWindow(QtWidgets.QDialog, topic_modeler.Ui_main_window):
 """                       MAIN                       """
 """=================================================="""
 
+# Runs the main window on startup
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()

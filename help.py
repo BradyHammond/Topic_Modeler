@@ -16,12 +16,18 @@ import re
 """                CLASS DEFINITIONS                 """
 """=================================================="""
 
+# Defines the help dialogue
 class Ui_help_dialog(object):
+
+    # Sets up the dialogue window
     def setupUi(self, help_dialog):
+
+        # Configures the dialogue window
         help_dialog.setObjectName("help_dialog")
         help_dialog.resize(700, 390)
         help_dialog.setFocusPolicy(QtCore.Qt.TabFocus)
 
+        # Configures the dialogue title label
         self.help_label = QtWidgets.QLabel(help_dialog)
         self.help_label.setGeometry(QtCore.QRect(20, 20, 350, 20))
         font = QtGui.QFont()
@@ -31,12 +37,14 @@ class Ui_help_dialog(object):
         self.help_label.setFont(font)
         self.help_label.setObjectName("help_label")
 
+        # Configures the dialogue search bar
         self.search_bar = QtWidgets.QLineEdit(help_dialog)
         self.search_bar.setGeometry(QtCore.QRect(370, 20, 150, 20))
         self.search_bar.setFocusPolicy(QtCore.Qt.WheelFocus)
         self.search_bar.setObjectName("search_bar")
         self.search_bar.returnPressed.connect(self.search)
 
+        # Configures the dialogue clear button
         self.clear_button = QtWidgets.QPushButton(help_dialog)
         self.clear_button.setGeometry(QtCore.QRect(500, 20, 20, 20))
         self.clear_button.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
@@ -49,6 +57,7 @@ class Ui_help_dialog(object):
         self.clear_button.setObjectName("clear_button")
         self.clear_button.clicked.connect(self.clearSearch)
 
+        # Configures the dialogue search button
         self.search_button = QtWidgets.QPushButton(help_dialog)
         self.search_button.setGeometry(QtCore.QRect(520, 20, 80, 20))
         font = QtGui.QFont()
@@ -59,6 +68,7 @@ class Ui_help_dialog(object):
         self.search_button.setObjectName("search_button")
         self.search_button.clicked.connect(self.search)
 
+        # Configures the dialogue quit button
         self.quit_button = QtWidgets.QPushButton(help_dialog)
         self.quit_button.setGeometry(QtCore.QRect(600, 20, 80, 20))
         font = QtGui.QFont()

@@ -19,21 +19,14 @@ import help
 import io
 import json
 import logging
-import matplotlib.pyplot as pyplot
 import multiprocessing
-from nltk.stem.snowball import SnowballStemmer
 from nltk import word_tokenize
 import os
+from process import fileProcessor
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
-import re
-from rippletagger.tagger import Tagger
 import shutil
-import string
-import sys
-import threading
-from wordcloud import WordCloud
-import word_cloud_color
+from visualization import visualizerObject
 
 """=================================================="""
 """                CLASS DEFINITIONS                 """
@@ -62,7 +55,7 @@ class Ui_main_window(object):
 
         self.byu_humanities_logo = QtWidgets.QLabel(self.grid_layout_widget_I)
         self.byu_humanities_logo.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.byu_humanities_logo.setPixmap(QtGui.QPixmap("resources/images/logo.png"))
+        self.byu_humanities_logo.setPixmap(QtGui.QPixmap("logo.png"))
         self.byu_humanities_logo.setAlignment(QtCore.Qt.AlignCenter)
         self.byu_humanities_logo.setObjectName("byu_humanities_logo")
         self.grid_layout_main.addWidget(self.byu_humanities_logo, 0, 0, 1, 1)
@@ -96,7 +89,7 @@ class Ui_main_window(object):
         self.input_file_selector = QtWidgets.QToolButton(self.grid_layout_widget_II)
         self.input_file_selector.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("resources/images/file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.input_file_selector.setIcon(icon)
         self.input_file_selector.setObjectName("input_file_selector")
         self.input_file_selector.clicked.connect(self.selectInputPath)
@@ -337,9 +330,9 @@ class Ui_main_window(object):
         self.noun_checkbox.setText(_translate("main_window", "NOUN"))
         self.adp_checkbox.setText(_translate("main_window", "ADP"))
         self.help_button.setText(_translate("main_window", "Help"))
-        self.version_label.setText(_translate("main_window", "Version 1.0.3"))
+        self.version_label.setText(_translate("main_window", "Version 1.1.1"))
 
-        preference_data_file = io.open("resources/files/preference_data.json", "r")
+        preference_data_file = io.open("preference_data.json", "r")
         preference_data = json.load(preference_data_file)
         self.mallet_path_input.setText(_translate("main_window", preference_data["mallet_path"]))
         self.input_path_input.setText(_translate("main_window", preference_data["input_path"]))
@@ -358,7 +351,7 @@ class Ui_main_window(object):
     # ==================================================
 
     def setCheckboxes(self):
-        preference_data_file = io.open("resources/files/preference_data.json", "r")
+        preference_data_file = io.open("preference_data.json", "r")
         preference_data = json.load(preference_data_file)
 
         if "ADJ" in preference_data["parts_of_speech"]:
@@ -395,7 +388,7 @@ class Ui_main_window(object):
     # ==================================================
 
     def setLanguage(self):
-        preference_data_file = io.open("resources/files/preference_data.json", "r")
+        preference_data_file = io.open("preference_data.json", "r")
         preference_data = json.load(preference_data_file)
         self.language_input.setCurrentIndex(int(preference_data["language_index"]))
         preference_data_file.close()
@@ -436,17 +429,6 @@ class Ui_main_window(object):
         print(str(datetime.datetime.now())[:-3] + " : INFO : checking input fields")
         logging.info("checking input fields")
         if self.mallet_path_input.text() == "":
-            '''
-            message_box = QMessageBox()
-            message_box.setIcon(QMessageBox.Warning)
-            message_box.setWindowTitle("Invalid Parameters")
-            message_box.setText("The MALLET path field is currently empty. Please enter a valid path to MALLET.")
-            message_box.exec_()
-
-            self.mallet_path_input.setFocus()
-            progress_bar.close()
-            return
-            '''
             message_box = QMessageBox()
             message_box.setIcon(QMessageBox.Warning)
             message_box.setWindowTitle("Missing MALLET Path")
@@ -659,7 +641,7 @@ class Ui_main_window(object):
         logging.info("saving preference data")
         self.savePreferenceData()
 
-        if not self.chunk_size_input.text().lower() == "document":
+        if not self.chunk_size_input.text().isalpha():
             if not os.path.exists(self.output_path_input.text() + "/Passages"):
                 os.makedirs(self.output_path_input.text() + "/Passages")
                 self.passages_directory = self.output_path_input.text() + "/Passages"
@@ -787,7 +769,7 @@ class Ui_main_window(object):
                             print(exception)
                             logging.info(exception)
 
-        if self.chunk_size_input.text().lower() == "document":
+        if self.chunk_size_input.text().isalpha():
             for subdirectory, directories, files in os.walk(self.input_path_input.text()):
                 for file in files:
                     if not file.startswith('.'):
@@ -809,12 +791,17 @@ class Ui_main_window(object):
         self.progress += 4
         progress_bar.setValue(self.progress)
 
+        visualizer = visualizerObject(self.top_point_one_percent, self.top_point_two_five_percent,
+                                self.top_point_five_percent, self.mallet,
+                                self.word_clouds_directory, self.distributions, self.documents,
+                                self.scatter_plot_directory)
         if self.mallet == True:
             print(str(datetime.datetime.now())[:-3] + " : INFO : starting scatter plot generation")
             logging.info("starting scatter plot generation")
             if not os.path.exists(self.output_path_input.text() + "/Scatter_Plots"):
                 os.makedirs(self.output_path_input.text() + "/Scatter_Plots")
                 self.scatter_plot_directory = self.output_path_input.text() + "/Scatter_Plots"
+                visualizer.setScatterPlotDirectory(self.scatter_plot_directory)
             else:
                 message_box = QMessageBox()
                 message_box.setIcon(QMessageBox.Warning)
@@ -831,6 +818,7 @@ class Ui_main_window(object):
                     return
                 else:
                     self.scatter_plot_directory = self.output_path_input.text() + "/Scatter_Plots"
+                    visualizer.setScatterPlotDirectory(self.scatter_plot_directory)
                     for file in os.listdir(self.scatter_plot_directory):
                         file_path = os.path.join(self.scatter_plot_directory, file)
                         try:
@@ -844,7 +832,7 @@ class Ui_main_window(object):
 
             increment = 24/(int(self.topics_input.text()))
             for i in range(int(self.topics_input.text())):
-                self.generateScatterPlots(i)
+                visualizer.generateScatterPlots(i)
                 self.progress += increment
                 progress_bar.setValue(self.progress)
 
@@ -858,6 +846,7 @@ class Ui_main_window(object):
         if not os.path.exists(self.output_path_input.text() + "/Word_Clouds"):
             os.makedirs(self.output_path_input.text() + "/Word_Clouds")
             self.word_clouds_directory = self.output_path_input.text() + "/Word_Clouds"
+            visualizer.setWordCloudDirectory(self.word_clouds_directory)
         else:
             message_box = QMessageBox()
             message_box.setIcon(QMessageBox.Warning)
@@ -874,6 +863,7 @@ class Ui_main_window(object):
                 return
             else:
                 self.word_clouds_directory = self.output_path_input.text() + "/Word_Clouds"
+                visualizer.setWordCloudDirectory(self.word_clouds_directory)
                 for file in os.listdir(self.word_clouds_directory):
                     file_path = os.path.join(self.word_clouds_directory, file)
                     try:
@@ -884,14 +874,22 @@ class Ui_main_window(object):
                         print(exception)
                         logging.info(exception)
 
-        jobs = []
+        # Replaced with Pool
+        '''jobs = []
         for i in range(int(self.topics_input.text())):
             process = multiprocessing.Process(target=self.generateWordClouds, args=(i, model))
             jobs.append(process)
             process.start()
 
         for job in jobs:
-            job.join()
+            job.join()'''
+
+        pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2 or 1)
+        for i in range(int(self.topics_input.text())):
+            pool.apply_async(visualizer.generateWordClouds, args=(i, model))
+        pool.close()
+        pool.join()
+
 
         self.progress += 25
         progress_bar.setValue(self.progress)
@@ -903,7 +901,8 @@ class Ui_main_window(object):
 
     # ==================================================
 
-    def generateWordClouds(self, number, model):
+    # Moved to visualiztion.py
+    '''def generateWordClouds(self, number, model):
         word_cloud = WordCloud(
             background_color="white",
             max_words=100,
@@ -923,19 +922,27 @@ class Ui_main_window(object):
         if self.mallet == True:
             tuples = model.show_topic(number, num_words=100)
             frequency_dictionary = dict([(entry[1], entry[0]) for entry in tuples])
+            for key in frequency_dictionary.keys():
+                if frequency_dictionary[key] == 0.0:
+                    frequency_dictionary[key] = 0.00001
+
         else:
             tuples = model.show_topic(number, topn=100)
             frequency_dictionary = dict(tuples)
+            for key in frequency_dictionary.keys():
+                if frequency_dictionary[key] == 0.0:
+                    frequency_dictionary[key] = 0.00001
         try:
             word_cloud.generate_from_frequencies(frequency_dictionary)
             word_cloud.recolor(color_func=grouped_color_function)
             word_cloud.to_file(self.word_clouds_directory + "/word_cloud_" + str(number + 1) + ".png")
         except Exception as exception:
-            logging.info(exception)
+            logging.info(exception)'''
 
     # ==================================================
 
-    def generateScatterPlots(self, number):
+    # Moved to visualiztion.py
+    '''def generateScatterPlots(self, number):
         document_saturations = []
 
         for distribution in self.distributions:
@@ -947,7 +954,7 @@ class Ui_main_window(object):
         figure.suptitle("Topic " + str(number + 1) + " Distribution", fontsize=14)
         figure.add_subplot(1, 1, 1)
 
-        ''' *** Add Document Titles to Scatter Plots ***
+        ---> *** Add Document Titles to Scatter Plots ***
         if self.chunk_size_input.text().lower() == "document":
             pyplot.xticks(x, self.documents, rotation="vertical")
         else:
@@ -968,7 +975,7 @@ class Ui_main_window(object):
                     label.set_visible(False)
         
             axes.xaxis.set_ticks_position("none")
-        '''
+        <---
         for label in pyplot.axes().xaxis.get_ticklabels():
             label.set_visible(False)
 
@@ -977,12 +984,12 @@ class Ui_main_window(object):
         pyplot.scatter(x, document_saturations, alpha=0.8, color="#3097d1")
         pyplot.savefig(self.scatter_plot_directory + "/scatter_plot_" + str(number + 1) + ".png")
         pyplot.clf()
-        pyplot.close()
+        pyplot.close()'''
 
     # ==================================================
 
     def savePreferenceData(self):
-        preference_data_file = io.open("resources/files/preference_data.json", "w")
+        preference_data_file = io.open("preference_data.json", "w")
         preference_data = {
             "mallet_path": self.mallet_path_input.text(),
             "input_path": self.input_path_input.text(),
@@ -1034,9 +1041,10 @@ class Ui_main_window(object):
 
     # ==================================================
 
-    def chunkCorpus(self, corpus, number):
+    # Moved to process.py
+    '''def chunkCorpus(self, corpus, number):
         for i in range(0, len(corpus), number):
-                yield corpus[i:i + number]
+                yield corpus[i:i + number]'''
 
     # ==================================================
 
@@ -1073,11 +1081,11 @@ class Ui_main_window(object):
                         except Exception as exception:
                             print(exception)
 
+        # Replaced with Pool
         '''
         increment = 24/len([file for file in os.listdir(self.input_path_input.text()) if not file.startswith('.')])
         '''
-
-        for subdirectory, directories, files in os.walk(self.input_path_input.text()):
+        '''for subdirectory, directories, files in os.walk(self.input_path_input.text()):
             jobs = []
             for file in files:
                 if not file.startswith('.'):
@@ -1085,7 +1093,25 @@ class Ui_main_window(object):
                     jobs.append(process)
                     process.start()
             for job in jobs:
-                job.join()
+                job.join()'''
+
+        print(str(datetime.datetime.now())[:-3] + " : INFO : starting file processor")
+        logging.info("starting file processor")
+
+        if self.chunk_size_input.text().isalpha():
+            file_processor = fileProcessor(self.language_input.currentText(), self.chunk_size_input.text().lower(),
+                                self.passages_directory, self.temporary_directory, self.parts_of_speech,
+                                self.stop_words)
+        else:
+            file_processor = fileProcessor(self.language_input.currentText(), self.chunk_size_input.text(),
+                                           self.passages_directory, self.temporary_directory, self.parts_of_speech,
+                                           self.stop_words)
+        for subdirectory, directories, files in os.walk(self.input_path_input.text()):
+            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count()-2 or 1)
+            for file in files:
+                pool.apply_async(file_processor.processFile, args=(subdirectory, file))
+            pool.close()
+            pool.join()
 
         for file in os.listdir(self.temporary_directory):
             if not file.startswith('.'):
@@ -1118,7 +1144,8 @@ class Ui_main_window(object):
 
     # ==================================================
 
-    def processFile(self, subdirectory, file):
+    # Moved to process.py
+    '''def processFile(self, subdirectory, file):
         file_name = os.path.splitext(file)[0]
         file_path = os.path.join(subdirectory, file)
 
@@ -1140,7 +1167,7 @@ class Ui_main_window(object):
 
         else:
             stemmer = SnowballStemmer("english")
-            tagger = Tagger(language="en-2")
+            tagger = Tagger(language="en-1")
 
         tagged_text = tagger.tag(working_file_text)
         if self.chunk_size_input.text().lower() == "document":
@@ -1148,11 +1175,12 @@ class Ui_main_window(object):
             chunked_file = io.open(self.temporary_directory + "/" + file_name + ".txt", "w", encoding="utf-8")
             for tag in tagged_text:
                 if tag[1] in self.parts_of_speech:
-                    if re.sub("»|«","", tag[0].translate(str.maketrans('','',string.punctuation))) in self.stop_words:
+                    word = re.sub("»|«","", tag[0])
+                    word = word.strip(string.punctuation)
+                    stemmed_tag = stemmer.stem(word)
+                    if stemmed_tag in self.stop_words:
                         pass
                     else:
-                        stemmed_tag = stemmer.stem(re.sub("»|«","", tag[0].translate(
-                            str.maketrans('','',string.punctuation))))
                         chunked_file.write(stemmed_tag + " ")
             chunked_file.close()
 
@@ -1192,14 +1220,15 @@ class Ui_main_window(object):
 
                 for tag in chunk:
                     if tag[1] in self.parts_of_speech:
-                        if re.sub("»|«","", tag[0].translate(str.maketrans('','',string.punctuation))) in self.stop_words:
+                        word = re.sub("»|«", "", tag[0])
+                        word = word.strip(string.punctuation)
+                        stemmed_tag = stemmer.stem(word)
+                        if stemmed_tag in self.stop_words:
                             pass
                         else:
-                            stemmed_tag = stemmer.stem(re.sub("»|«","", tag[0].translate(
-                                str.maketrans('','',string.punctuation))))
                             chunked_file.write(stemmed_tag + " ")
                 chunked_file.close()
-                chunk_number += 1
+                chunk_number += 1'''
 
     # ==================================================
 
@@ -1248,8 +1277,9 @@ class Ui_main_window(object):
                         self.stop_words.append(word)
                 else:
                     self.stop_words_formatted_correctly = True
-                    self.stop_words.append(line)
-            stop_words_file.close()
+                    self.stop_words.append(line.strip())
+        stop_words_file.close()
+
 
 """=================================================="""
 """                       EOF                        """
