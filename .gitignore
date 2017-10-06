@@ -42,7 +42,8 @@ setup.py
 
 # Other #
 ##########################
-/.idea
+.idea/*
+.idea/
 /bin
 /dist
 /__psychache__
