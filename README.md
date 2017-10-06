@@ -1,9 +1,9 @@
 # Topic Modeler
 The Scandinavian Topic Modeler is a tool developed to topic model Danish, Norwegian, and Swedish corpora. The program was developed by 
-Brigham Young University's [Nordic Digital Humanities Lab](https://www.nordicdh.org'). This program is written in Python, and is made possible thanks to Emil Stenstrom's [rippletagger](https://github.com/EmilStenstrom/rippletagger) library and Andreas Mueller's [wordcloud](https://github.com/amueller/word_cloud) library.
+Brigham Young University's [Nordic Digital Humanities Lab](https://www.nordicdh.org').
 
 # Usage
-A dmg of the Topic Modeler can be downloaded from [Nordic Digital Humanities Lab](https://www.nordicdh-beta.org/downloads'). For use in an IDE pip install the following dependencies: PIL, PyQt5, rippletagger, wordcloud, gensim, nltk, matplotlib. Some of these libraries may require additional dependencies. 
+An OSX version of the Topic Modeler can be downloaded from the [Nordic Digital Humanities Lab website](https://www.nordicdh-beta.org/downloads'). At this time, there are not currently compiled binaries for Windows nor Linux. For use in an IDE, use pip to install the following dependencies: PIL, PyQt5, rippletagger, wordcloud, gensim, nltk, matplotlib. Some of the listed libraries may require additional dependencies. 
 
 # License
 The Scandinavian Topic Modeler is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version. The Scandinavian Topic Modeler is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. For a copy of the GNU General Public License see [http://www.gnu.org/licenses/](http://www.gnu.org/licenses/).
